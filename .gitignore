@@ -1,0 +1,5 @@
+/target
+/ello-data
+*.key
+*.pem
+!signatures/*.pub

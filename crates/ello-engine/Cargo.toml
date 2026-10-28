@@ -1,0 +1,23 @@
+[package]
+name = "ello-engine"
+description = "Ello Antivirus scanning engine: signatures, heuristics, archive inspection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aho-corasick.workspace = true
+base64.workspace = true
+ed25519-dalek.workspace = true
+goblin.workspace = true
+hex.workspace = true
+rayon.workspace = true
+serde.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+walkdir.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+tempfile.workspace = true
