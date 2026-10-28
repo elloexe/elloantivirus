@@ -1,5 +1,6 @@
 [package]
 name = "ello-sigtool"
+description = "Ello Antivirus signature authoring and signing tool"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,15 @@ license.workspace = true
 [[bin]]
 name = "ello-sigtool"
 path = "src/main.rs"
+
+[dependencies]
+ello-engine.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+ed25519-dalek = { workspace = true }
+hex.workspace = true
+rand.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

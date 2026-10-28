@@ -505,6 +505,16 @@ version = "0.1.0"
 [[package]]
 name = "ello-sigtool"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ed25519-dalek",
+ "ello-engine",
+ "hex",
+ "rand",
+ "sha2",
+ "tempfile",
+]
 
 [[package]]
 name = "equivalent"
