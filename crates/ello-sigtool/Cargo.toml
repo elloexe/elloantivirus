@@ -1,0 +1,9 @@
+[package]
+name = "ello-sigtool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ello-sigtool"
+path = "src/main.rs"

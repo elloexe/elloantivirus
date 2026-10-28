@@ -1,0 +1,9 @@
+[package]
+name = "ello-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ello-service"
+path = "src/main.rs"

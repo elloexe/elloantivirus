@@ -1,0 +1,9 @@
+[package]
+name = "ello-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ello"
+path = "src/main.rs"
