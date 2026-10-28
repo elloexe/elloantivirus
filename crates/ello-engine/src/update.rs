@@ -8,7 +8,8 @@
 //! (or a corrupted mirror) from feeding the scanner forged or rolled-back
 //! signatures.
 
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+pub use ed25519_dalek::VerifyingKey;
+use ed25519_dalek::{Signature, Verifier};
 
 use crate::sigdb::SignatureDb;
 

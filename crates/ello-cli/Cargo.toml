@@ -1,5 +1,6 @@
 [package]
 name = "ello-cli"
+description = "Ello Antivirus command-line scanner"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,21 @@ license.workspace = true
 [[bin]]
 name = "ello"
 path = "src/main.rs"
+
+[dependencies]
+ello-common.workspace = true
+ello-engine.workspace = true
+ello-quarantine.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+hex.workspace = true
+rayon.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sysinfo.workspace = true
+walkdir.workspace = true
+dirs = "5"
+
+[dev-dependencies]
+tempfile.workspace = true
