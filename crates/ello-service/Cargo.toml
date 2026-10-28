@@ -1,5 +1,6 @@
 [package]
 name = "ello-service"
+description = "Ello Antivirus real-time protection service"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,3 +8,20 @@ license.workspace = true
 [[bin]]
 name = "ello-service"
 path = "src/main.rs"
+
+[dependencies]
+ello-common.workspace = true
+ello-engine.workspace = true
+ello-quarantine.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+crossbeam-channel.workspace = true
+notify.workspace = true
+ctrlc = "3"
+tracing.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.7"
+
+[dev-dependencies]
+tempfile.workspace = true
