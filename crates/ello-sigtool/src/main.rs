@@ -17,7 +17,11 @@ use ello_engine::sigdb::SignatureDb;
 use ello_engine::update;
 
 #[derive(Parser)]
-#[command(name = "ello-sigtool", version, about = "Author and sign Ello Antivirus signatures")]
+#[command(
+    name = "ello-sigtool",
+    version,
+    about = "Author and sign Ello Antivirus signatures"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -86,7 +90,11 @@ fn read_hex_key(path: &Path) -> Result<Vec<u8>> {
     if raw.len() == 32 || raw.len() == 64 && raw.iter().all(|b| !b.is_ascii_hexdigit()) {
         return Ok(raw);
     }
-    let text: String = raw.iter().filter(|b| !b.is_ascii_whitespace()).map(|&b| b as char).collect();
+    let text: String = raw
+        .iter()
+        .filter(|b| !b.is_ascii_whitespace())
+        .map(|&b| b as char)
+        .collect();
     hex::decode(&text).context("key file is not valid hex")
 }
 
@@ -105,11 +113,16 @@ fn run() -> Result<()> {
             println!("Keep the private key offline and secret.");
         }
         Command::Sign { file, key, out } => {
-            let content = std::fs::read(&file).with_context(|| format!("reading {}", file.display()))?;
+            let content =
+                std::fs::read(&file).with_context(|| format!("reading {}", file.display()))?;
             // Fail fast if the content isn't a valid database.
-            SignatureDb::parse(&String::from_utf8_lossy(&content)).context("file is not a valid .ellodb")?;
+            SignatureDb::parse(&String::from_utf8_lossy(&content))
+                .context("file is not a valid .ellodb")?;
             let key_bytes = read_hex_key(&key)?;
-            let arr: [u8; 32] = key_bytes.as_slice().try_into().map_err(|_| anyhow::anyhow!("private key must be 32 bytes"))?;
+            let arr: [u8; 32] = key_bytes
+                .as_slice()
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("private key must be 32 bytes"))?;
             let sk = SigningKey::from_bytes(&arr);
             let sig = sk.sign(&content);
             let out = out.unwrap_or_else(|| append_ext(&file, "sig"));
@@ -120,14 +133,25 @@ fn run() -> Result<()> {
             let content = std::fs::read(&file)?;
             let sig_bytes = decode_hexish(&std::fs::read(&sig)?)?;
             let key_bytes = decode_hexish(&std::fs::read(&pubkey)?)?;
-            let vk = VerifyingKey::from_bytes(&key_bytes.as_slice().try_into().map_err(|_| anyhow::anyhow!("public key must be 32 bytes"))?)
-                .context("invalid public key")?;
+            let vk = VerifyingKey::from_bytes(
+                &key_bytes
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| anyhow::anyhow!("public key must be 32 bytes"))?,
+            )
+            .context("invalid public key")?;
             match update::verify(&content, &sig_bytes, &[vk]) {
                 Ok(()) => println!("OK: signature is valid"),
                 Err(e) => bail!("verification failed: {e}"),
             }
         }
-        Command::Import { input, out, prefix, default_name, version } => {
+        Command::Import {
+            input,
+            out,
+            prefix,
+            default_name,
+            version,
+        } => {
             let text = read_input(&input)?;
             let (sigs, skipped) = importer::import_feed(&text, &default_name, &prefix);
             let mut body = String::new();
@@ -138,24 +162,39 @@ fn run() -> Result<()> {
             // Round-trip through the parser to guarantee validity.
             SignatureDb::parse(&body).context("generated database failed validation")?;
             write_output(&out, body.as_bytes())?;
-            eprintln!("Imported {} signatures ({} lines skipped)", sigs.len(), skipped);
+            eprintln!(
+                "Imported {} signatures ({} lines skipped)",
+                sigs.len(),
+                skipped
+            );
         }
         Command::Lint { file } => {
             let text = std::fs::read_to_string(&file)?;
             let db = SignatureDb::parse(&text).context("invalid database")?;
-            println!("OK: version {}, {} hashes, {} rules", db.version(), db.hash_count(), db.rule_count());
+            println!(
+                "OK: version {}, {} hashes, {} rules",
+                db.version(),
+                db.hash_count(),
+                db.rule_count()
+            );
         }
     }
     Ok(())
 }
 
 fn decode_hexish(raw: &[u8]) -> Result<Vec<u8>> {
-    if raw.len() == 64 || raw.len() == 32 {
-        if raw.iter().any(|b| !b.is_ascii_hexdigit() && !b.is_ascii_whitespace()) {
-            return Ok(raw.to_vec());
-        }
+    if (raw.len() == 64 || raw.len() == 32)
+        && raw
+            .iter()
+            .any(|b| !b.is_ascii_hexdigit() && !b.is_ascii_whitespace())
+    {
+        return Ok(raw.to_vec());
     }
-    let text: String = raw.iter().filter(|b| !b.is_ascii_whitespace()).map(|&b| b as char).collect();
+    let text: String = raw
+        .iter()
+        .filter(|b| !b.is_ascii_whitespace())
+        .map(|&b| b as char)
+        .collect();
     hex::decode(&text).context("expected hex-encoded bytes")
 }
 
@@ -203,6 +242,9 @@ mod tests {
 
     #[test]
     fn append_ext_adds_suffix() {
-        assert_eq!(append_ext(Path::new("a/b.ellodb"), "sig"), PathBuf::from("a/b.ellodb.sig"));
+        assert_eq!(
+            append_ext(Path::new("a/b.ellodb"), "sig"),
+            PathBuf::from("a/b.ellodb.sig")
+        );
     }
 }

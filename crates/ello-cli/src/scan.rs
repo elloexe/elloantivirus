@@ -78,7 +78,10 @@ pub fn scan_files(
             outcome
         })
         .collect();
-    let mut stats = ScanStats { bytes: bytes.load(Ordering::Relaxed), ..Default::default() };
+    let mut stats = ScanStats {
+        bytes: bytes.load(Ordering::Relaxed),
+        ..Default::default()
+    };
     for o in &outcomes {
         stats.record(o);
     }
@@ -105,16 +108,22 @@ pub fn remediate(
                 Remediation::ReportOnly => Remediated::Reported,
                 Remediation::Delete => match std::fs::remove_file(&outcome.path) {
                     Ok(()) => Remediated::Deleted,
-                    Err(e) => Remediated::Failed { error: e.to_string() },
+                    Err(e) => Remediated::Failed {
+                        error: e.to_string(),
+                    },
                 },
                 Remediation::Quarantine => {
                     let mut guard = quarantine.lock().unwrap();
                     match guard.as_mut() {
                         Some(q) => match q.quarantine_file(&outcome.path, &worst.name) {
                             Ok(entry) => Remediated::Quarantined { id: entry.id },
-                            Err(e) => Remediated::Failed { error: e.to_string() },
+                            Err(e) => Remediated::Failed {
+                                error: e.to_string(),
+                            },
                         },
-                        None => Remediated::Failed { error: "quarantine unavailable".into() },
+                        None => Remediated::Failed {
+                            error: "quarantine unavailable".into(),
+                        },
                     }
                 }
             }
@@ -124,7 +133,6 @@ pub fn remediate(
     results
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,7 +141,9 @@ mod tests {
 
     fn eicar_engine() -> Engine {
         let hex = ello_engine::scanner::eicar_sha256_hex();
-        Engine::with_db(SignatureDb::parse(&format!("@version 1\nH {hex} EICAR-Test-File\n")).unwrap())
+        Engine::with_db(
+            SignatureDb::parse(&format!("@version 1\nH {hex} EICAR-Test-File\n")).unwrap(),
+        )
     }
 
     #[test]
@@ -168,13 +178,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let bad = dir.path().join("evil.com");
         std::fs::write(&bad, EICAR).unwrap();
-        let (outcomes, _) = scan_files(&eicar_engine(), &[bad.clone()], |_| {});
+        let (outcomes, _) = scan_files(&eicar_engine(), std::slice::from_ref(&bad), |_| {});
         let q = Quarantine::open(&dir.path().join("vault")).unwrap();
         let qm = Mutex::new(Some(q));
         let actions = remediate(&outcomes, Remediation::Quarantine, &qm);
         assert_eq!(actions.len(), 1);
         assert!(matches!(actions[0].1, Remediated::Quarantined { .. }));
-        assert!(!bad.exists(), "quarantined file should be removed from disk");
+        assert!(
+            !bad.exists(),
+            "quarantined file should be removed from disk"
+        );
     }
 
     #[test]
@@ -182,7 +195,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let bad = dir.path().join("evil.com");
         std::fs::write(&bad, EICAR).unwrap();
-        let (outcomes, _) = scan_files(&eicar_engine(), &[bad.clone()], |_| {});
+        let (outcomes, _) = scan_files(&eicar_engine(), std::slice::from_ref(&bad), |_| {});
         let actions = remediate(&outcomes, Remediation::ReportOnly, &Mutex::new(None));
         assert_eq!(actions[0].1, Remediated::Reported);
         assert!(bad.exists());

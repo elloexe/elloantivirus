@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use windows_service::service::{
-    ServiceAccess, ServiceErrorControl, ServiceExitCode, ServiceInfo, ServiceStartType, ServiceState,
-    ServiceStatus, ServiceType,
+    ServiceAccess, ServiceErrorControl, ServiceExitCode, ServiceInfo, ServiceStartType,
+    ServiceState, ServiceStatus, ServiceType,
 };
 use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
 use windows_service::service_manager::{ServiceManager, ServiceManagerAccess};
@@ -51,7 +51,10 @@ pub fn install() -> Result<()> {
 
 pub fn uninstall() -> Result<()> {
     let service = manager()?
-        .open_service(SERVICE_NAME, ServiceAccess::DELETE | ServiceAccess::STOP | ServiceAccess::QUERY_STATUS)
+        .open_service(
+            SERVICE_NAME,
+            ServiceAccess::DELETE | ServiceAccess::STOP | ServiceAccess::QUERY_STATUS,
+        )
         .context("opening service")?;
     let _ = service.stop();
     service.delete().context("deleting service")?;
@@ -120,12 +123,18 @@ fn run_service() -> Result<()> {
     };
 
     use windows_service::service::ServiceControlAccept;
-    status_handle.set_service_status(running(ServiceState::Running, ServiceControlAccept::STOP | ServiceControlAccept::SHUTDOWN))?;
+    status_handle.set_service_status(running(
+        ServiceState::Running,
+        ServiceControlAccept::STOP | ServiceControlAccept::SHUTDOWN,
+    ))?;
 
     let (config, watch, debounce) = crate::load_watch_config(Vec::new())?;
     let result = watcher_run(config, watch, debounce, shutdown_rx);
 
-    status_handle.set_service_status(running(ServiceState::Stopped, ServiceControlAccept::empty()))?;
+    status_handle.set_service_status(running(
+        ServiceState::Stopped,
+        ServiceControlAccept::empty(),
+    ))?;
     result
 }
 

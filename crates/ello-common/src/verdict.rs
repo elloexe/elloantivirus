@@ -66,7 +66,11 @@ pub struct ScanOutcome {
 
 impl ScanOutcome {
     pub fn clean(path: PathBuf) -> Self {
-        ScanOutcome { path, detections: Vec::new(), error: None }
+        ScanOutcome {
+            path,
+            detections: Vec::new(),
+            error: None,
+        }
     }
 
     pub fn is_infected(&self) -> bool {
@@ -125,14 +129,24 @@ mod tests {
     use super::*;
 
     fn det(c: Confidence) -> Detection {
-        Detection { name: "X".into(), kind: DetectionKind::Heuristic, confidence: c, reasons: vec![], inner_path: None }
+        Detection {
+            name: "X".into(),
+            kind: DetectionKind::Heuristic,
+            confidence: c,
+            reasons: vec![],
+            inner_path: None,
+        }
     }
 
     #[test]
     fn worst_picks_highest_confidence() {
         let o = ScanOutcome {
             path: "a".into(),
-            detections: vec![det(Confidence::Suspicious), det(Confidence::Known), det(Confidence::Malicious)],
+            detections: vec![
+                det(Confidence::Suspicious),
+                det(Confidence::Known),
+                det(Confidence::Malicious),
+            ],
             error: None,
         };
         assert_eq!(o.worst().unwrap().confidence, Confidence::Known);
@@ -143,9 +157,21 @@ mod tests {
     fn stats_categorize() {
         let mut s = ScanStats::default();
         s.record(&ScanOutcome::clean("c".into()));
-        s.record(&ScanOutcome { path: "m".into(), detections: vec![det(Confidence::Malicious)], error: None });
-        s.record(&ScanOutcome { path: "s".into(), detections: vec![det(Confidence::Suspicious)], error: None });
-        s.record(&ScanOutcome { path: "e".into(), detections: vec![], error: Some("io".into()) });
+        s.record(&ScanOutcome {
+            path: "m".into(),
+            detections: vec![det(Confidence::Malicious)],
+            error: None,
+        });
+        s.record(&ScanOutcome {
+            path: "s".into(),
+            detections: vec![det(Confidence::Suspicious)],
+            error: None,
+        });
+        s.record(&ScanOutcome {
+            path: "e".into(),
+            detections: vec![],
+            error: Some("io".into()),
+        });
         assert_eq!(s.scanned, 4);
         assert_eq!(s.infected, 1);
         assert_eq!(s.suspicious, 1);
@@ -154,7 +180,11 @@ mod tests {
 
     #[test]
     fn verdict_roundtrips_json() {
-        let o = ScanOutcome { path: "p".into(), detections: vec![det(Confidence::Known)], error: None };
+        let o = ScanOutcome {
+            path: "p".into(),
+            detections: vec![det(Confidence::Known)],
+            error: None,
+        };
         let j = serde_json::to_string(&o).unwrap();
         assert_eq!(serde_json::from_str::<ScanOutcome>(&j).unwrap(), o);
     }

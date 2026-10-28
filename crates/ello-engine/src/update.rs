@@ -34,13 +34,22 @@ pub fn parse_public_key(bytes: &[u8]) -> Result<VerifyingKey, UpdateError> {
     } else {
         bytes.to_vec()
     };
-    let arr: [u8; 32] = raw.as_slice().try_into().map_err(|_| UpdateError::BadKey(format!("expected 32 bytes, got {}", raw.len())))?;
+    let arr: [u8; 32] = raw
+        .as_slice()
+        .try_into()
+        .map_err(|_| UpdateError::BadKey(format!("expected 32 bytes, got {}", raw.len())))?;
     VerifyingKey::from_bytes(&arr).map_err(|e| UpdateError::BadKey(e.to_string()))
 }
 
 /// Verifies `signature` over `content` against any of the `trusted_keys`.
-pub fn verify(content: &[u8], signature: &[u8], trusted_keys: &[VerifyingKey]) -> Result<(), UpdateError> {
-    let sig_bytes: [u8; 64] = signature.try_into().map_err(|_| UpdateError::BadSignatureLen(signature.len()))?;
+pub fn verify(
+    content: &[u8],
+    signature: &[u8],
+    trusted_keys: &[VerifyingKey],
+) -> Result<(), UpdateError> {
+    let sig_bytes: [u8; 64] = signature
+        .try_into()
+        .map_err(|_| UpdateError::BadSignatureLen(signature.len()))?;
     let sig = Signature::from_bytes(&sig_bytes);
     if trusted_keys.iter().any(|k| k.verify(content, &sig).is_ok()) {
         Ok(())
@@ -63,7 +72,10 @@ pub fn accept_update(
     let text = String::from_utf8_lossy(content);
     let db = SignatureDb::parse(&text)?;
     if db.version() <= installed_version {
-        return Err(UpdateError::NotNewer { offered: db.version(), installed: installed_version });
+        return Err(UpdateError::NotNewer {
+            offered: db.version(),
+            installed: installed_version,
+        });
     }
     Ok(db)
 }
@@ -121,7 +133,10 @@ mod tests {
         let sig = sk.sign(content).to_bytes();
         assert!(matches!(
             accept_update(content, &sig, &[sk.verifying_key()], 10),
-            Err(UpdateError::NotNewer { offered: 10, installed: 10 })
+            Err(UpdateError::NotNewer {
+                offered: 10,
+                installed: 10
+            })
         ));
     }
 

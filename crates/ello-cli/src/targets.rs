@@ -24,7 +24,7 @@ pub fn executable_from_command(cmd: &str) -> Option<PathBuf> {
         // Unquoted: take up to the first argument that begins with a switch,
         // but keep spaces that are part of the path (best effort: stop at a
         // token starting with '/' or '-' that follows an existing path).
-        match cmd.split_once(|c| c == ' ') {
+        match cmd.split_once(' ') {
             Some((head, _)) if head.to_ascii_lowercase().ends_with(".exe") => head,
             _ => cmd,
         }
@@ -81,7 +81,9 @@ pub fn registry_autoruns() -> BTreeSet<PathBuf> {
     ];
     let mut out = BTreeSet::new();
     for key in KEYS {
-        let output = std::process::Command::new("reg").args(["query", key]).output();
+        let output = std::process::Command::new("reg")
+            .args(["query", key])
+            .output();
         if let Ok(o) = output {
             out.extend(parse_reg_query(&String::from_utf8_lossy(&o.stdout)));
         }
@@ -190,7 +192,9 @@ mod tests {
     fn parses_reg_query_output() {
         let text = "\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\r\n    OneDrive    REG_SZ    \"C:\\Users\\x\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background\r\n    Evil    REG_EXPAND_SZ    C:\\Temp\\dropper.exe\r\n";
         let paths = parse_reg_query(text);
-        assert!(paths.contains(&PathBuf::from(r"C:\Users\x\AppData\Local\Microsoft\OneDrive\OneDrive.exe")));
+        assert!(paths.contains(&PathBuf::from(
+            r"C:\Users\x\AppData\Local\Microsoft\OneDrive\OneDrive.exe"
+        )));
         assert!(paths.contains(&PathBuf::from(r"C:\Temp\dropper.exe")));
         assert_eq!(paths.len(), 2);
     }

@@ -22,7 +22,11 @@ pub const SERVICE_NAME: &str = "ElloProtection";
 pub const SERVICE_DISPLAY: &str = "Ello Antivirus Real-Time Protection";
 
 #[derive(Parser)]
-#[command(name = "ello-service", version, about = "Ello Antivirus real-time protection service")]
+#[command(
+    name = "ello-service",
+    version,
+    about = "Ello Antivirus real-time protection service"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -83,7 +87,11 @@ fn run() -> Result<()> {
 /// Loads config and resolves the effective watch list.
 pub fn load_watch_config(overrides: Vec<PathBuf>) -> Result<(Config, Vec<PathBuf>, Duration)> {
     let config = Config::load(&paths::config_file()).unwrap_or_default();
-    let watch = if overrides.is_empty() { config.realtime.watch_paths.clone() } else { overrides };
+    let watch = if overrides.is_empty() {
+        config.realtime.watch_paths.clone()
+    } else {
+        overrides
+    };
     let debounce = Duration::from_millis(config.realtime.debounce_ms.max(50));
     Ok((config, watch, debounce))
 }

@@ -1,0 +1,31 @@
+# Ello Antivirus base signature database
+# Format: see crates/ello-engine/src/sigdb.rs
+#
+# This is a SMALL SEED set for demonstration and self-test. A production
+# deployment pulls a signed, frequently-updated database via `ello update`
+# and imports public hash feeds with `ello-sigtool import`.
+@version 2026102801
+
+# --- Standard anti-malware test file (EICAR) ---
+H 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f EICAR-Test-File
+R any 1 EICAR-Test-File "EICAR-STANDARD-ANTIVIRUS-TEST-FILE"
+
+# --- Script / PowerShell attack patterns ---
+# Reflective in-memory .NET loader with Win32 interop (Cobalt-Strike-style).
+R script 3 Trojan.PS.ReflectiveLoader "System.Reflection.Assembly" "VirtualAlloc" "GetDelegateForFunctionPointer" "WriteProcessMemory"
+# PowerShell AMSI bypass via amsiInitFailed reflection.
+R script 2 HackTool.PS.AmsiBypass "amsiInitFailed" "System.Management.Automation.AmsiUtils"
+# Classic download-cradle one-liner.
+R script 2 Downloader.PS.Cradle "Net.WebClient" "DownloadString" "Invoke-Expression"
+
+# --- Office macro droppers ---
+R ole 2 Trojan.VBA.AutoOpenShell "AutoOpen" "Shell"
+R ole 2 Trojan.VBA.DocumentOpenWsh "Document_Open" "WScript.Shell"
+
+# --- Ransomware behaviour markers ---
+R any 2 Ransom.Generic.ShadowDelete "vssadmin" "delete" "shadows"
+R any 1 Ransom.Note.Generic "all your files have been encrypted"
+
+# --- Living-off-the-land abuse ---
+R any 1 Abuse.Certutil.Downloader "certutil -urlcache -split -f http"
+R any 1 Abuse.Regsvr32.Squiblydoo "regsvr32 /s /n /u /i:http"

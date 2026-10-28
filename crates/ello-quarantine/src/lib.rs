@@ -24,7 +24,10 @@ const MAGIC: &[u8; 8] = b"ELLOQ1\0\0";
 #[derive(Debug, thiserror::Error)]
 pub enum QuarantineError {
     #[error("io error on {path}: {source}")]
-    Io { path: PathBuf, source: std::io::Error },
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     #[error("crypto failure (data corrupt or wrong key)")]
     Crypto,
     #[error("vault file is corrupt: {0}")]
@@ -85,11 +88,16 @@ impl Quarantine {
         let cipher = ChaCha20Poly1305::new(Key::from_slice(&key));
         let index_path = dir.join("index.json");
         let index = match fs::read(&index_path) {
-            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| QuarantineError::Corrupt(e.to_string()))?,
+            Ok(bytes) => serde_json::from_slice(&bytes)
+                .map_err(|e| QuarantineError::Corrupt(e.to_string()))?,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Index::default(),
             Err(e) => return Err(io(&index_path)(e)),
         };
-        Ok(Quarantine { dir: dir.to_path_buf(), cipher, index })
+        Ok(Quarantine {
+            dir: dir.to_path_buf(),
+            cipher,
+            index,
+        })
     }
 
     pub fn entries(&self) -> &[QuarantineEntry] {
@@ -109,7 +117,10 @@ impl Quarantine {
     fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, QuarantineError> {
         let mut nonce = [0u8; 12];
         rand::RngCore::fill_bytes(&mut rand::rngs::OsRng, &mut nonce);
-        let ct = self.cipher.encrypt(Nonce::from_slice(&nonce), plaintext).map_err(|_| QuarantineError::Crypto)?;
+        let ct = self
+            .cipher
+            .encrypt(Nonce::from_slice(&nonce), plaintext)
+            .map_err(|_| QuarantineError::Crypto)?;
         let mut out = Vec::with_capacity(MAGIC.len() + 12 + ct.len());
         out.extend_from_slice(MAGIC);
         out.extend_from_slice(&nonce);
@@ -123,12 +134,18 @@ impl Quarantine {
         }
         let nonce = &blob[MAGIC.len()..MAGIC.len() + 12];
         let ct = &blob[MAGIC.len() + 12..];
-        self.cipher.decrypt(Nonce::from_slice(nonce), ct).map_err(|_| QuarantineError::Crypto)
+        self.cipher
+            .decrypt(Nonce::from_slice(nonce), ct)
+            .map_err(|_| QuarantineError::Crypto)
     }
 
     /// Reads `src`, stores an encrypted copy, and (on success) removes the
     /// original. Returns the new entry.
-    pub fn quarantine_file(&mut self, src: &Path, threat: &str) -> Result<QuarantineEntry, QuarantineError> {
+    pub fn quarantine_file(
+        &mut self,
+        src: &Path,
+        threat: &str,
+    ) -> Result<QuarantineEntry, QuarantineError> {
         let data = fs::read(src).map_err(io(src))?;
         let entry = self.store_bytes(src, threat, &data)?;
         fs::remove_file(src).map_err(io(src))?;
@@ -138,7 +155,12 @@ impl Quarantine {
     /// Stores `data` as a quarantined object attributed to `original_path`,
     /// without touching the filesystem source (used for data already in memory
     /// or for testing).
-    pub fn store_bytes(&mut self, original_path: &Path, threat: &str, data: &[u8]) -> Result<QuarantineEntry, QuarantineError> {
+    pub fn store_bytes(
+        &mut self,
+        original_path: &Path,
+        threat: &str,
+        data: &[u8],
+    ) -> Result<QuarantineEntry, QuarantineError> {
         let sha256 = hex::encode::<[u8; 32]>(Sha256::digest(data).into());
         let id = format!("{}-{}", now_compact(), &sha256[..16]);
         let blob = self.encrypt(data)?;
@@ -169,8 +191,16 @@ impl Quarantine {
     /// Restores an item to `dest` (or its original path when `dest` is `None`)
     /// and removes it from the vault. Refuses to overwrite an existing file.
     pub fn restore(&mut self, id: &str, dest: Option<&Path>) -> Result<PathBuf, QuarantineError> {
-        let entry = self.index.entries.iter().find(|e| e.id == id).ok_or_else(|| QuarantineError::NotFound(id.into()))?.clone();
-        let target = dest.map(Path::to_path_buf).unwrap_or(entry.original_path.clone());
+        let entry = self
+            .index
+            .entries
+            .iter()
+            .find(|e| e.id == id)
+            .ok_or_else(|| QuarantineError::NotFound(id.into()))?
+            .clone();
+        let target = dest
+            .map(Path::to_path_buf)
+            .unwrap_or(entry.original_path.clone());
         if target.exists() {
             return Err(QuarantineError::RestoreExists(target));
         }
@@ -238,7 +268,9 @@ mod tests {
     #[test]
     fn store_encrypts_and_reads_back() {
         let (dir, mut q) = vault();
-        let e = q.store_bytes(Path::new("/tmp/evil.exe"), "Win32.Test", b"malware-bytes").unwrap();
+        let e = q
+            .store_bytes(Path::new("/tmp/evil.exe"), "Win32.Test", b"malware-bytes")
+            .unwrap();
         // The stored blob must not contain the plaintext.
         let blob = fs::read(dir.path().join(format!("{}.q", e.id))).unwrap();
         assert!(!blob.windows(13).any(|w| w == b"malware-bytes"));
@@ -265,7 +297,10 @@ mod tests {
         let e = q.store_bytes(Path::new("x"), "t", b"data").unwrap();
         let dest = dir.path().join("occupied");
         fs::write(&dest, b"existing").unwrap();
-        assert!(matches!(q.restore(&e.id, Some(&dest)), Err(QuarantineError::RestoreExists(_))));
+        assert!(matches!(
+            q.restore(&e.id, Some(&dest)),
+            Err(QuarantineError::RestoreExists(_))
+        ));
     }
 
     #[test]

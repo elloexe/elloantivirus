@@ -20,7 +20,11 @@ use ello_quarantine::Quarantine;
 use scan::Remediation;
 
 #[derive(Parser)]
-#[command(name = "ello", version, about = "Ello Antivirus — scan, quarantine, and update")]
+#[command(
+    name = "ello",
+    version,
+    about = "Ello Antivirus — scan, quarantine, and update"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -146,7 +150,11 @@ fn run() -> Result<ExitCode> {
     let config = Config::load(&paths::config_file()).unwrap_or_default();
 
     match cli.command {
-        Command::Scan { paths, opts, no_recurse } => {
+        Command::Scan {
+            paths,
+            opts,
+            no_recurse,
+        } => {
             let roots = paths;
             run_scan(&config, &opts, &roots, !no_recurse, cli.json)
         }
@@ -156,14 +164,24 @@ fn run() -> Result<ExitCode> {
             roots.extend(targets::startup_folders());
             roots.extend(targets::hot_folders());
             if !cli.json {
-                eprintln!("Quick scan: {} process images + autoruns + hot folders", roots.len());
+                eprintln!(
+                    "Quick scan: {} process images + autoruns + hot folders",
+                    roots.len()
+                );
             }
             run_scan(&config, &opts, &roots, true, cli.json)
         }
         Command::Full { opts } => {
             let roots = targets::full_scan_roots();
             if !cli.json {
-                eprintln!("Full scan of: {}", roots.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "));
+                eprintln!(
+                    "Full scan of: {}",
+                    roots
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
             }
             run_scan(&config, &opts, &roots, true, cli.json)
         }
@@ -208,12 +226,22 @@ fn resolve_action(config: &Config, opts: &ScanOpts) -> Remediation {
     }
 }
 
-fn run_scan(config: &Config, opts: &ScanOpts, roots: &[PathBuf], recurse: bool, json: bool) -> Result<ExitCode> {
+fn run_scan(
+    config: &Config,
+    opts: &ScanOpts,
+    roots: &[PathBuf],
+    recurse: bool,
+    json: bool,
+) -> Result<ExitCode> {
     let engine = build_engine(config, opts)?;
     let action = resolve_action(config, opts);
     let files = scan::collect_files(roots, recurse);
     if !json {
-        eprintln!("Scanning {} files (signatures v{})...", files.len(), engine.signature_version());
+        eprintln!(
+            "Scanning {} files (signatures v{})...",
+            files.len(),
+            engine.signature_version()
+        );
     }
     let (outcomes, stats) = scan::scan_files(&engine, &files, |o| {
         if !json && o.is_infected() {
@@ -236,7 +264,11 @@ fn run_scan(config: &Config, opts: &ScanOpts, roots: &[PathBuf], recurse: bool, 
         report::print_summary(&stats, engine.signature_version(), &actions);
     }
 
-    Ok(if stats.infected > 0 { ExitCode::from(1) } else { ExitCode::SUCCESS })
+    Ok(if stats.infected > 0 {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    })
 }
 
 fn run_quarantine(action: QuarantineCmd, json: bool) -> Result<()> {
@@ -248,9 +280,14 @@ fn run_quarantine(action: QuarantineCmd, json: bool) -> Result<()> {
             } else if q.entries().is_empty() {
                 println!("Quarantine is empty.");
             } else {
-                println!("{:<40} {:<24} {}", "ID", "THREAT", "ORIGINAL PATH");
+                println!("{:<40} {:<24} ORIGINAL PATH", "ID", "THREAT");
                 for e in q.entries() {
-                    println!("{:<40} {:<24} {}", e.id, e.threat, e.original_path.display());
+                    println!(
+                        "{:<40} {:<24} {}",
+                        e.id,
+                        e.threat,
+                        e.original_path.display()
+                    );
                 }
             }
         }
@@ -276,7 +313,11 @@ fn load_trusted_keys() -> Vec<update::VerifyingKey> {
         for entry in dir.flatten() {
             if entry.path().extension().and_then(|e| e.to_str()) == Some("pub") {
                 if let Ok(bytes) = std::fs::read(entry.path()) {
-                    let trimmed: Vec<u8> = bytes.iter().copied().filter(|b| !b.is_ascii_whitespace()).collect();
+                    let trimmed: Vec<u8> = bytes
+                        .iter()
+                        .copied()
+                        .filter(|b| !b.is_ascii_whitespace())
+                        .collect();
                     if let Ok(key) = update::parse_public_key(&trimmed) {
                         keys.push(key);
                     }
@@ -290,8 +331,10 @@ fn load_trusted_keys() -> Vec<update::VerifyingKey> {
 fn run_update(config: &Config, action: UpdateCmd, json: bool) -> Result<()> {
     match action {
         UpdateCmd::Apply { file, sig } => {
-            let content = std::fs::read(&file).with_context(|| format!("reading {}", file.display()))?;
-            let sig_raw = std::fs::read(&sig).with_context(|| format!("reading {}", sig.display()))?;
+            let content =
+                std::fs::read(&file).with_context(|| format!("reading {}", file.display()))?;
+            let sig_raw =
+                std::fs::read(&sig).with_context(|| format!("reading {}", sig.display()))?;
             let signature = decode_sig(&sig_raw)?;
             let keys = load_trusted_keys();
             if keys.is_empty() {
@@ -312,14 +355,21 @@ fn run_update(config: &Config, action: UpdateCmd, json: bool) -> Result<()> {
                 db.rule_count()
             );
             if json {
-                println!("{}", serde_json::json!({"ok": true, "version": db.version(), "hashes": db.hash_count(), "rules": db.rule_count()}));
+                println!(
+                    "{}",
+                    serde_json::json!({"ok": true, "version": db.version(), "hashes": db.hash_count(), "rules": db.rule_count()})
+                );
             } else {
                 println!("{msg}");
             }
         }
         UpdateCmd::Trust { file, name } => {
             let bytes = std::fs::read(&file)?;
-            let trimmed: Vec<u8> = bytes.iter().copied().filter(|b| !b.is_ascii_whitespace()).collect();
+            let trimmed: Vec<u8> = bytes
+                .iter()
+                .copied()
+                .filter(|b| !b.is_ascii_whitespace())
+                .collect();
             let key = update::parse_public_key(&trimmed).context("parsing public key")?;
             paths::ensure_layout()?;
             let dest = paths::keys_dir().join(format!("{name}.pub"));
@@ -335,16 +385,24 @@ fn decode_sig(raw: &[u8]) -> Result<Vec<u8>> {
     if raw.len() == 64 {
         return Ok(raw.to_vec());
     }
-    let text: String = raw.iter().filter(|b| !b.is_ascii_whitespace()).map(|&b| b as char).collect();
+    let text: String = raw
+        .iter()
+        .filter(|b| !b.is_ascii_whitespace())
+        .map(|&b| b as char)
+        .collect();
     let decoded = hex::decode(&text).context("signature is neither 64 raw bytes nor hex")?;
     Ok(decoded)
 }
 
 fn print_status(config: &Config, json: bool) -> Result<()> {
-    let version = scanner::load_engine(&sig_path(), &config.scan).map(|e| e.signature_version()).unwrap_or(0);
+    let version = scanner::load_engine(&sig_path(), &config.scan)
+        .map(|e| e.signature_version())
+        .unwrap_or(0);
     let sig_present = sig_path().exists();
     let trusted = load_trusted_keys().len();
-    let quarantined = Quarantine::open(&paths::quarantine_dir()).map(|q| q.entries().len()).unwrap_or(0);
+    let quarantined = Quarantine::open(&paths::quarantine_dir())
+        .map(|q| q.entries().len())
+        .unwrap_or(0);
     if json {
         println!(
             "{}",
@@ -361,14 +419,26 @@ fn print_status(config: &Config, json: bool) -> Result<()> {
         );
     } else {
         println!("Ello Antivirus");
-        println!("  signatures        v{version}{}", if sig_present { "" } else { " (none installed)" });
+        println!(
+            "  signatures        v{version}{}",
+            if sig_present { "" } else { " (none installed)" }
+        );
         println!("  trusted keys      {trusted}");
         println!("  quarantined items {quarantined}");
         println!("  data directory    {}", paths::data_dir().display());
-        println!("  realtime          {}", if config.realtime.enabled { "enabled" } else { "disabled" });
-        println!("  sensitivity       {:?}", config.scan.heuristic_sensitivity);
+        println!(
+            "  realtime          {}",
+            if config.realtime.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        );
+        println!(
+            "  sensitivity       {:?}",
+            config.scan.heuristic_sensitivity
+        );
         println!("  default action    {:?}", config.realtime.action);
     }
     Ok(())
 }
-

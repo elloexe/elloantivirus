@@ -1,0 +1,35 @@
+# Ello Antivirus configuration.
+# Copy to the data directory as config.toml:
+#   Windows: %ProgramData%\ElloAntivirus\config.toml
+#   Other:   $XDG_DATA_HOME/ElloAntivirus/config.toml (dev/testing)
+# Override the data directory with the ELLO_DATA_DIR environment variable.
+
+[scan]
+# Heuristic aggressiveness: "off", "low", "normal", or "high".
+heuristic_sensitivity = "normal"
+# Skip files larger than this many bytes (0 = no limit).
+max_file_size = 536870912
+# Maximum nesting depth for archives/containers.
+max_archive_depth = 8
+# Abort an archive once decompressed output exceeds this ratio of input.
+max_compression_ratio = 200
+# Cap on total decompressed bytes per top-level archive.
+max_archive_output = 2147483648
+# File extensions never scanned (lower-case, no dot).
+skip_extensions = []
+
+[realtime]
+# Enable the real-time protection service.
+enabled = false
+# Folders watched recursively (defaults to Downloads/Desktop/Documents/Temp).
+watch_paths = []
+# Action for confirmed-malicious files: "report", "quarantine", or "delete".
+action = "quarantine"
+# Quiet period (ms) a file must be idle before it is scanned.
+debounce_ms = 750
+
+[update]
+# Base URL serving latest.ellodb and latest.ellodb.sig.
+url = "https://updates.example.invalid/ello"
+auto_update = false
+interval_hours = 6

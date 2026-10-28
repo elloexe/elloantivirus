@@ -14,7 +14,8 @@ fn u16le(d: &[u8], o: usize) -> Option<u16> {
     d.get(o..o + 2).map(|b| u16::from_le_bytes([b[0], b[1]]))
 }
 fn u32le(d: &[u8], o: usize) -> Option<u32> {
-    d.get(o..o + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    d.get(o..o + 4)
+        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
 }
 
 struct Cfb<'a> {
@@ -73,7 +74,8 @@ impl<'a> Cfb<'a> {
         }
         let mut difat = difat_start;
         let mut guard = 0;
-        while difat != ENDOFCHAIN && difat != FREESECT && guard < MAX_SECTORS && guard <= num_difat {
+        while difat != ENDOFCHAIN && difat != FREESECT && guard < MAX_SECTORS && guard <= num_difat
+        {
             let sec = sector(difat, data)?;
             let entries = sector_size / 4 - 1;
             for i in 0..entries {
@@ -103,7 +105,11 @@ impl<'a> Cfb<'a> {
             let mut chain = Vec::new();
             let mut cur = start;
             let mut g = 0;
-            while cur != ENDOFCHAIN && cur != FREESECT && (cur as usize) < fat.len() && g < MAX_SECTORS {
+            while cur != ENDOFCHAIN
+                && cur != FREESECT
+                && (cur as usize) < fat.len()
+                && g < MAX_SECTORS
+            {
                 chain.push(cur);
                 cur = fat[cur as usize];
                 g += 1;
@@ -129,9 +135,10 @@ impl<'a> Cfb<'a> {
             let e = &dir_bytes[off..off + 128];
             let kind = e[66];
             let name_len = u16le(e, 64).unwrap_or(0) as usize;
-            if (1..=5).contains(&kind) && name_len >= 2 && name_len <= 64 {
-                let utf16: Vec<u16> =
-                    (0..(name_len / 2 - 1)).filter_map(|i| u16le(e, i * 2)).collect();
+            if (1..=5).contains(&kind) && (2..=64).contains(&name_len) {
+                let utf16: Vec<u16> = (0..(name_len / 2 - 1))
+                    .filter_map(|i| u16le(e, i * 2))
+                    .collect();
                 dir.push(DirEntry {
                     name: String::from_utf16_lossy(&utf16),
                     kind,
@@ -145,7 +152,10 @@ impl<'a> Cfb<'a> {
 
         // Mini FAT + mini stream (held in the root entry's chain).
         let mut mini_fat = Vec::new();
-        for idx in walk(mini_fat_start, &fat).into_iter().take(num_mini_fat.max(1).min(MAX_SECTORS)) {
+        for idx in walk(mini_fat_start, &fat)
+            .into_iter()
+            .take(num_mini_fat.clamp(1, MAX_SECTORS))
+        {
             if let Some(s) = sector(idx, data) {
                 for i in 0..sector_size / 4 {
                     if let Some(v) = u32le(s, i * 4) {
@@ -160,7 +170,16 @@ impl<'a> Cfb<'a> {
             .map(|root| read_chain(root.start, &fat, data))
             .unwrap_or_default();
 
-        Some(Cfb { data, sector_size, mini_sector_size, fat, mini_fat, dir, mini_stream, mini_cutoff })
+        Some(Cfb {
+            data,
+            sector_size,
+            mini_sector_size,
+            fat,
+            mini_fat,
+            dir,
+            mini_stream,
+            mini_cutoff,
+        })
     }
 
     fn read_stream(&self, e: &DirEntry) -> Vec<u8> {
@@ -168,7 +187,11 @@ impl<'a> Cfb<'a> {
         if e.size < self.mini_cutoff as u64 {
             let mut cur = e.start;
             let mut g = 0;
-            while cur != ENDOFCHAIN && cur != FREESECT && (cur as usize) < self.mini_fat.len() && g < MAX_SECTORS {
+            while cur != ENDOFCHAIN
+                && cur != FREESECT
+                && (cur as usize) < self.mini_fat.len()
+                && g < MAX_SECTORS
+            {
                 let off = cur as usize * self.mini_sector_size;
                 if let Some(s) = self.mini_stream.get(off..off + self.mini_sector_size) {
                     out.extend_from_slice(s);
@@ -179,7 +202,11 @@ impl<'a> Cfb<'a> {
         } else {
             let mut cur = e.start;
             let mut g = 0;
-            while cur != ENDOFCHAIN && cur != FREESECT && (cur as usize) < self.fat.len() && g < MAX_SECTORS {
+            while cur != ENDOFCHAIN
+                && cur != FREESECT
+                && (cur as usize) < self.fat.len()
+                && g < MAX_SECTORS
+            {
                 let off = (cur as usize + 1) * self.sector_size;
                 if let Some(s) = self.data.get(off..off + self.sector_size) {
                     out.extend_from_slice(s);
@@ -315,7 +342,9 @@ mod tests {
     #[test]
     fn decompress_all_literals() {
         // Flag byte 0x00 => eight literal bytes follow.
-        let blob: &[u8] = &[0x01, 0x08, 0xB0, 0x00, b'm', b'a', b'c', b'r', b'o', b'!', b'!', b'!'];
+        let blob: &[u8] = &[
+            0x01, 0x08, 0xB0, 0x00, b'm', b'a', b'c', b'r', b'o', b'!', b'!', b'!',
+        ];
         assert_eq!(decompress_ovba(blob).unwrap(), b"macro!!!");
     }
 

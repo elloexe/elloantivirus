@@ -17,7 +17,10 @@ pub struct Debouncer {
 
 impl Debouncer {
     pub fn new(window: Duration) -> Self {
-        Debouncer { window, pending: HashMap::new() }
+        Debouncer {
+            window,
+            pending: HashMap::new(),
+        }
     }
 
     /// Records activity on `path` at `now`, resetting its quiet timer.

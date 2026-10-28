@@ -49,7 +49,11 @@ pub fn detect(name: &str, data: &[u8]) -> FileType {
     if data.starts_with(&[0x4C, 0x00, 0x00, 0x00, 0x01, 0x14, 0x02, 0x00]) {
         return FileType::Lnk;
     }
-    if data.len() >= 5 && data[..data.len().min(1024)].windows(5).any(|w| w == b"%PDF-") {
+    if data.len() >= 5
+        && data[..data.len().min(1024)]
+            .windows(5)
+            .any(|w| w == b"%PDF-")
+    {
         return FileType::Pdf;
     }
     let ext = extension_of(name);
@@ -70,7 +74,9 @@ fn looks_like_text(data: &[u8]) -> bool {
     }
     let printable = head
         .iter()
-        .filter(|&&b| b == b'\n' || b == b'\r' || b == b'\t' || (0x20..0x7f).contains(&b) || b >= 0x80)
+        .filter(|&&b| {
+            b == b'\n' || b == b'\r' || b == b'\t' || (0x20..0x7f).contains(&b) || b >= 0x80
+        })
         .count();
     printable * 100 / head.len() >= 95 && !head.contains(&0)
 }

@@ -44,7 +44,11 @@ impl Engine {
                 max_entries: 100_000,
             },
             max_file_size: cfg.max_file_size,
-            skip_extensions: cfg.skip_extensions.iter().map(|s| s.to_ascii_lowercase()).collect(),
+            skip_extensions: cfg
+                .skip_extensions
+                .iter()
+                .map(|s| s.to_ascii_lowercase())
+                .collect(),
         }
     }
 
@@ -65,29 +69,57 @@ impl Engine {
     pub fn scan_file(&self, path: &Path) -> ScanOutcome {
         let meta = match std::fs::metadata(path) {
             Ok(m) => m,
-            Err(e) => return ScanOutcome { path: path.into(), detections: vec![], error: Some(e.to_string()) },
+            Err(e) => {
+                return ScanOutcome {
+                    path: path.into(),
+                    detections: vec![],
+                    error: Some(e.to_string()),
+                }
+            }
         };
         if self.max_file_size != 0 && meta.len() > self.max_file_size {
-            return ScanOutcome { path: path.into(), detections: vec![], error: Some("skipped".into()) };
+            return ScanOutcome {
+                path: path.into(),
+                detections: vec![],
+                error: Some("skipped".into()),
+            };
         }
         let ext = filetype::extension_of(&path.to_string_lossy());
         if self.skip_extensions.contains(&ext) {
-            return ScanOutcome { path: path.into(), detections: vec![], error: Some("skipped".into()) };
+            return ScanOutcome {
+                path: path.into(),
+                detections: vec![],
+                error: Some("skipped".into()),
+            };
         }
         match std::fs::read(path) {
             Ok(data) => {
                 let name = path.to_string_lossy().into_owned();
                 let mut budget = 0u64;
                 let detections = self.scan_bytes(&name, &data, 0, &mut budget);
-                ScanOutcome { path: path.into(), detections, error: None }
+                ScanOutcome {
+                    path: path.into(),
+                    detections,
+                    error: None,
+                }
             }
-            Err(e) => ScanOutcome { path: path.into(), detections: vec![], error: Some(e.to_string()) },
+            Err(e) => ScanOutcome {
+                path: path.into(),
+                detections: vec![],
+                error: Some(e.to_string()),
+            },
         }
     }
 
     /// Scans a raw buffer. `name` is used for file-name heuristics and for
     /// labelling nested objects. `depth` bounds archive recursion.
-    pub fn scan_bytes(&self, name: &str, data: &[u8], depth: u32, budget: &mut u64) -> Vec<Detection> {
+    pub fn scan_bytes(
+        &self,
+        name: &str,
+        data: &[u8],
+        depth: u32,
+        budget: &mut u64,
+    ) -> Vec<Detection> {
         let mut out = Vec::new();
 
         // 1. Exact hash signature (most authoritative).
@@ -129,9 +161,7 @@ impl Engine {
     }
 
     fn run_heuristics(&self, name: &str, data: &[u8], ft: FileType) -> Option<Detection> {
-        let Some((malicious, suspicious)) = self.sensitivity.thresholds() else {
-            return None;
-        };
+        let (malicious, suspicious) = self.sensitivity.thresholds()?;
         let mut findings = heuristics::filename_tricks(name);
         let script_like = ft == FileType::Script;
         findings.extend(heuristics::string_indicators(data, script_like));
@@ -143,7 +173,11 @@ impl Engine {
             if let Some(src) = ole::extract_vba(data) {
                 let mut macro_findings = heuristics::string_indicators(src.as_bytes(), true);
                 if !macro_findings.is_empty() {
-                    findings.push(heuristics::Finding::new(15, "Macro", "document contains an auto-executing VBA project"));
+                    findings.push(heuristics::Finding::new(
+                        15,
+                        "Macro",
+                        "document contains an auto-executing VBA project",
+                    ));
                 }
                 findings.append(&mut macro_findings);
             }
@@ -212,13 +246,16 @@ pub fn eicar_sha256_hex() -> String {
     hex::encode::<[u8; 32]>(Sha256::digest(EICAR).into())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn eicar_db() -> SignatureDb {
-        SignatureDb::parse(&format!("@version 1\nH {} EICAR-Test-File\n", eicar_sha256_hex())).unwrap()
+        SignatureDb::parse(&format!(
+            "@version 1\nH {} EICAR-Test-File\n",
+            eicar_sha256_hex()
+        ))
+        .unwrap()
     }
 
     #[test]
@@ -246,7 +283,14 @@ mod tests {
     fn clean_file_has_no_detections() {
         let eng = Engine::with_db(eicar_db());
         let mut b = 0;
-        assert!(eng.scan_bytes("readme.txt", b"This is a perfectly ordinary text file.\n", 0, &mut b).is_empty());
+        assert!(eng
+            .scan_bytes(
+                "readme.txt",
+                b"This is a perfectly ordinary text file.\n",
+                0,
+                &mut b
+            )
+            .is_empty());
     }
 
     #[test]
@@ -256,7 +300,8 @@ mod tests {
         let mut buf = Vec::new();
         {
             let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
-            w.start_file("payload/eicar.com", SimpleFileOptions::default()).unwrap();
+            w.start_file("payload/eicar.com", SimpleFileOptions::default())
+                .unwrap();
             w.write_all(EICAR).unwrap();
             w.finish().unwrap();
         }
@@ -278,13 +323,17 @@ mod tests {
             let mut buf = Vec::new();
             {
                 let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
-                w.start_file(format!("lvl{i}.zip"), SimpleFileOptions::default()).unwrap();
+                w.start_file(format!("lvl{i}.zip"), SimpleFileOptions::default())
+                    .unwrap();
                 w.write_all(&inner).unwrap();
                 w.finish().unwrap();
             }
             inner = buf;
         }
-        let cfg = ScanConfig { max_archive_depth: 3, ..Default::default() };
+        let cfg = ScanConfig {
+            max_archive_depth: 3,
+            ..Default::default()
+        };
         let eng = Engine::new(eicar_db(), &cfg);
         let mut b = 0;
         // Should not find the deeply-buried eicar (beyond depth 3).

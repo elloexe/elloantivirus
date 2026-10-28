@@ -32,7 +32,10 @@ pub enum SigDbError {
 }
 
 fn perr<T>(line: usize, msg: impl Into<String>) -> Result<T, SigDbError> {
-    Err(SigDbError::Parse { line, msg: msg.into() })
+    Err(SigDbError::Parse {
+        line,
+        msg: msg.into(),
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -110,7 +113,11 @@ impl Pattern {
                 "pattern needs at least {MIN_ANCHOR_LEN} consecutive literal bytes"
             ));
         }
-        Ok(Pattern { bytes, anchor_start: best_start, anchor_len: best_len })
+        Ok(Pattern {
+            bytes,
+            anchor_start: best_start,
+            anchor_len: best_len,
+        })
     }
 
     pub fn literal(bytes: &[u8]) -> Result<Self, String> {
@@ -132,7 +139,10 @@ impl Pattern {
         let Some(window) = data.get(start..start + self.bytes.len()) else {
             return false;
         };
-        window.iter().zip(&self.bytes).all(|(d, p)| p.map_or(true, |p| p == *d))
+        window
+            .iter()
+            .zip(&self.bytes)
+            .all(|(d, p)| p.is_none_or(|p| p == *d))
     }
 
     fn parse_token(tok: &str) -> Result<Self, String> {
@@ -145,7 +155,7 @@ impl Pattern {
             let s = unescape(s.strip_suffix('"').ok_or("unterminated string")?)?;
             return Self::literal(s.as_bytes());
         }
-        if tok.len() % 2 != 0 {
+        if !tok.len().is_multiple_of(2) {
             return Err("hex pattern has odd length".into());
         }
         let mut out = Vec::with_capacity(tok.len() / 2);
@@ -154,7 +164,9 @@ impl Pattern {
                 out.push(None);
             } else {
                 let s = std::str::from_utf8(chunk).map_err(|_| "invalid hex")?;
-                out.push(Some(u8::from_str_radix(s, 16).map_err(|_| format!("invalid hex byte {s:?}"))?));
+                out.push(Some(
+                    u8::from_str_radix(s, 16).map_err(|_| format!("invalid hex byte {s:?}"))?,
+                ));
             }
         }
         Self::new(out)
@@ -320,9 +332,17 @@ impl SignatureDb {
                         }
                     }
                     if min_matches == 0 || min_matches > patterns.len() {
-                        return perr(line_no, "min-matches must be between 1 and the pattern count");
+                        return perr(
+                            line_no,
+                            "min-matches must be between 1 and the pattern count",
+                        );
                     }
-                    self.rules.push(Rule { name: toks[3].clone(), target, min_matches, patterns });
+                    self.rules.push(Rule {
+                        name: toks[3].clone(),
+                        target,
+                        min_matches,
+                        patterns,
+                    });
                 }
                 other => return perr(line_no, format!("unknown record type {other:?}")),
             }
@@ -379,7 +399,9 @@ impl SignatureDb {
 
     /// Runs all pattern rules applicable to `ft` over `data`.
     pub fn match_rules(&self, data: &[u8], ft: FileType) -> Vec<RuleHit> {
-        let Some(m) = &self.matcher else { return Vec::new() };
+        let Some(m) = &self.matcher else {
+            return Vec::new();
+        };
         let mut found: HashSet<(usize, usize)> = HashSet::new();
         for hit in m.ac.find_overlapping_iter(data) {
             for &(ri, pi) in &m.anchors[hit.pattern().as_usize()] {
@@ -424,31 +446,54 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].name, "Test.Wild");
         assert!(db.match_rules(b"hello", FileType::Unknown).is_empty());
-        assert_eq!(db.match_rules(b"hello", FileType::Pe)[0].name, "Test.PeOnly");
+        assert_eq!(
+            db.match_rules(b"hello", FileType::Pe)[0].name,
+            "Test.PeOnly"
+        );
     }
 
     #[test]
     fn min_matches_threshold() {
         let db = SignatureDb::parse(r#"R any 2 Test.TwoOf "alpha" "bravo" w"charlie""#).unwrap();
         assert!(db.match_rules(b"alpha only", FileType::Unknown).is_empty());
-        let wide: Vec<u8> = "charlie".encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
+        let wide: Vec<u8> = "charlie"
+            .encode_utf16()
+            .flat_map(|u| u.to_le_bytes())
+            .collect();
         let mut data = b"alpha ".to_vec();
         data.extend_from_slice(&wide);
         let hits = db.match_rules(&data, FileType::Unknown);
-        assert_eq!(hits, vec![RuleHit { name: "Test.TwoOf".into(), matched: 2, total: 3 }]);
+        assert_eq!(
+            hits,
+            vec![RuleHit {
+                name: "Test.TwoOf".into(),
+                matched: 2,
+                total: 3
+            }]
+        );
     }
 
     #[test]
     fn shared_anchors_and_overlaps() {
-        let db = SignatureDb::parse("R any 1 A \"abcdef\"\nR any 1 B \"abcdef\"\nR any 1 C \"cdefgh\"\n").unwrap();
-        let names: Vec<_> = db.match_rules(b"abcdefgh", FileType::Unknown).into_iter().map(|h| h.name).collect();
+        let db = SignatureDb::parse(
+            "R any 1 A \"abcdef\"\nR any 1 B \"abcdef\"\nR any 1 C \"cdefgh\"\n",
+        )
+        .unwrap();
+        let names: Vec<_> = db
+            .match_rules(b"abcdefgh", FileType::Unknown)
+            .into_iter()
+            .map(|h| h.name)
+            .collect();
         assert_eq!(names, ["A", "B", "C"]);
     }
 
     #[test]
     fn quoted_strings_with_spaces_and_escapes() {
         let db = SignatureDb::parse(r#"R any 1 Q "a b \"c\" \x41""#).unwrap();
-        assert_eq!(db.match_rules(b"..a b \"c\" A..", FileType::Unknown).len(), 1);
+        assert_eq!(
+            db.match_rules(b"..a b \"c\" A..", FileType::Unknown).len(),
+            1
+        );
     }
 
     #[test]

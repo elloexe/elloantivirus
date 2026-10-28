@@ -44,7 +44,9 @@ pub enum ArchiveEvent {
 }
 
 pub fn is_zip(data: &[u8]) -> bool {
-    data.starts_with(b"PK\x03\x04") || data.starts_with(b"PK\x05\x06") || data.starts_with(b"PK\x07\x08")
+    data.starts_with(b"PK\x03\x04")
+        || data.starts_with(b"PK\x05\x06")
+        || data.starts_with(b"PK\x07\x08")
 }
 
 /// Extracts members from a ZIP container, invoking `sink` for each. Extraction
@@ -110,7 +112,8 @@ mod tests {
         let mut buf = Vec::new();
         {
             let mut w = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
-            let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+            let opts =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
             for (name, data) in files {
                 w.start_file(*name, opts).unwrap();
                 w.write_all(data).unwrap();
@@ -125,7 +128,9 @@ mod tests {
         let z = build_zip(&[("a.txt", b"hello"), ("b/c.txt", b"world")]);
         let mut got = Vec::new();
         let mut budget = 0;
-        assert!(extract_zip(&z, &Limits::default(), &mut budget, |m| got.push((m.name, m.data))).is_none());
+        assert!(extract_zip(&z, &Limits::default(), &mut budget, |m| got
+            .push((m.name, m.data)))
+        .is_none());
         assert_eq!(got.len(), 2);
         assert_eq!(got[0], ("a.txt".to_string(), b"hello".to_vec()));
         assert_eq!(budget, 10);
@@ -134,7 +139,10 @@ mod tests {
     #[test]
     fn enforces_total_output_budget() {
         let z = build_zip(&[("big.bin", &vec![0u8; 50_000])]);
-        let limits = Limits { max_total_output: 1000, ..Default::default() };
+        let limits = Limits {
+            max_total_output: 1000,
+            ..Default::default()
+        };
         let mut budget = 0;
         let ev = extract_zip(&z, &limits, &mut budget, |_| {});
         assert_eq!(ev, Some(ArchiveEvent::LimitHit("decompression ratio")));
@@ -144,7 +152,10 @@ mod tests {
     fn highly_compressible_bomb_is_bounded() {
         // 10 MiB of zeros deflates tiny; the cap must stop us reading it all.
         let z = build_zip(&[("bomb", &vec![0u8; 10 * 1024 * 1024])]);
-        let limits = Limits { max_entry_output: 4096, ..Default::default() };
+        let limits = Limits {
+            max_entry_output: 4096,
+            ..Default::default()
+        };
         let mut budget = 0;
         let mut total = 0u64;
         extract_zip(&z, &limits, &mut budget, |m| total += m.data.len() as u64);
@@ -154,6 +165,9 @@ mod tests {
     #[test]
     fn rejects_non_zip() {
         let mut budget = 0;
-        assert_eq!(extract_zip(b"not a zip", &Limits::default(), &mut budget, |_| {}), Some(ArchiveEvent::NotAnArchive));
+        assert_eq!(
+            extract_zip(b"not a zip", &Limits::default(), &mut budget, |_| {}),
+            Some(ArchiveEvent::NotAnArchive)
+        );
     }
 }

@@ -77,8 +77,13 @@ pub fn parse_line(line: &str, default_name: &str, name_prefix: &str) -> Option<H
     }
     let fields = csv_fields(line);
     // Find the first field that is a bare SHA-256.
-    let hash_idx = fields.iter().position(|f| is_sha256(f.trim().trim_matches('"')))?;
-    let sha256 = fields[hash_idx].trim().trim_matches('"').to_ascii_lowercase();
+    let hash_idx = fields
+        .iter()
+        .position(|f| is_sha256(f.trim().trim_matches('"')))?;
+    let sha256 = fields[hash_idx]
+        .trim()
+        .trim_matches('"')
+        .to_ascii_lowercase();
     // Choose a label: prefer a later non-hash, non-numeric field (family/sig).
     let label = fields
         .iter()
@@ -139,9 +144,19 @@ mod tests {
 
     #[test]
     fn plain_hash_per_line() {
-        let (sigs, skipped) = import_feed(&format!("{H}\n# comment\n{}\n", "ab".repeat(32)), "Generic", "Imported");
+        let (sigs, skipped) = import_feed(
+            &format!("{H}\n# comment\n{}\n", "ab".repeat(32)),
+            "Generic",
+            "Imported",
+        );
         assert_eq!(sigs.len(), 2);
-        assert_eq!(sigs[0], HashSig { sha256: H.into(), name: "Imported.Generic".into() });
+        assert_eq!(
+            sigs[0],
+            HashSig {
+                sha256: H.into(),
+                name: "Imported.Generic".into()
+            }
+        );
         assert_eq!(skipped, 0);
     }
 

@@ -4,34 +4,24 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Sensitivity {
     Off,
     Low,
+    #[default]
     Normal,
     High,
 }
 
-impl Default for Sensitivity {
-    fn default() -> Self {
-        Sensitivity::Normal
-    }
-}
-
 /// Default action for a confirmed malicious object during automated scans.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DefaultAction {
     Report,
+    #[default]
     Quarantine,
     Delete,
-}
-
-impl Default for DefaultAction {
-    fn default() -> Self {
-        DefaultAction::Quarantine
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -136,9 +126,15 @@ pub struct Config {
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("reading {path}: {source}")]
-    Io { path: PathBuf, source: std::io::Error },
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     #[error("parsing {path}: {source}")]
-    Parse { path: PathBuf, source: toml::de::Error },
+    Parse {
+        path: PathBuf,
+        source: toml::de::Error,
+    },
     #[error("serializing config: {0}")]
     Serialize(#[from] toml::ser::Error),
 }
@@ -147,18 +143,30 @@ impl Config {
     /// Loads config from `path`, returning defaults if the file is absent.
     pub fn load(path: &Path) -> Result<Self, ConfigError> {
         match std::fs::read_to_string(path) {
-            Ok(text) => toml::from_str(&text).map_err(|source| ConfigError::Parse { path: path.into(), source }),
+            Ok(text) => toml::from_str(&text).map_err(|source| ConfigError::Parse {
+                path: path.into(),
+                source,
+            }),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
-            Err(source) => Err(ConfigError::Io { path: path.into(), source }),
+            Err(source) => Err(ConfigError::Io {
+                path: path.into(),
+                source,
+            }),
         }
     }
 
     pub fn save(&self, path: &Path) -> Result<(), ConfigError> {
         let text = toml::to_string_pretty(self)?;
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|source| ConfigError::Io { path: parent.into(), source })?;
+            std::fs::create_dir_all(parent).map_err(|source| ConfigError::Io {
+                path: parent.into(),
+                source,
+            })?;
         }
-        std::fs::write(path, text).map_err(|source| ConfigError::Io { path: path.into(), source })
+        std::fs::write(path, text).map_err(|source| ConfigError::Io {
+            path: path.into(),
+            source,
+        })
     }
 }
 
@@ -177,7 +185,10 @@ mod tests {
     fn partial_config_fills_defaults() {
         let c: Config = toml::from_str("[scan]\nheuristic_sensitivity = \"high\"\n").unwrap();
         assert_eq!(c.scan.heuristic_sensitivity, Sensitivity::High);
-        assert_eq!(c.scan.max_archive_depth, ScanConfig::default().max_archive_depth);
+        assert_eq!(
+            c.scan.max_archive_depth,
+            ScanConfig::default().max_archive_depth
+        );
         assert_eq!(c.update.interval_hours, 6);
     }
 

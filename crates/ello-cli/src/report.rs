@@ -57,7 +57,11 @@ pub fn print_detection(outcome: &ScanOutcome) {
             Confidence::Malicious => (C_RED, "THREAT"),
             Confidence::Suspicious => (C_YELLOW, "SUSPECT"),
         };
-        let loc = d.inner_path.as_deref().map(|p| format!(" {}", paint(C_DIM, &format!("[{p}]")))).unwrap_or_default();
+        let loc = d
+            .inner_path
+            .as_deref()
+            .map(|p| format!(" {}", paint(C_DIM, &format!("[{p}]"))))
+            .unwrap_or_default();
         println!(
             "  {} {} {}{}",
             paint(c, &format!("[{label}]")),
@@ -71,7 +75,12 @@ pub fn print_detection(outcome: &ScanOutcome) {
     }
     if let Some(err) = &outcome.error {
         if err != "skipped" {
-            eprintln!("  {} {}: {}", paint(C_YELLOW, "[ERROR]"), outcome.path.display(), err);
+            eprintln!(
+                "  {} {}: {}",
+                paint(C_YELLOW, "[ERROR]"),
+                outcome.path.display(),
+                err
+            );
         }
     }
 }
@@ -93,8 +102,16 @@ pub fn print_summary(stats: &ScanStats, version: u64, actions: &[(PathBuf, Remed
     let infected_color = if stats.infected > 0 { C_RED } else { C_GREEN };
     println!("\n{}", paint(C_BOLD, "Scan complete"));
     println!("  signatures   v{version}");
-    println!("  scanned      {} files ({:.1} MiB)", stats.scanned, stats.bytes as f64 / (1024.0 * 1024.0));
-    println!("  {}      {}", paint(infected_color, "infected"), paint(infected_color, &stats.infected.to_string()));
+    println!(
+        "  scanned      {} files ({:.1} MiB)",
+        stats.scanned,
+        stats.bytes as f64 / (1024.0 * 1024.0)
+    );
+    println!(
+        "  {}      {}",
+        paint(infected_color, "infected"),
+        paint(infected_color, &stats.infected.to_string())
+    );
     if stats.suspicious > 0 {
         println!("  {}   {}", paint(C_YELLOW, "suspicious"), stats.suspicious);
     }
@@ -126,6 +143,14 @@ pub fn json_report<'a>(
             })
         })
         .collect();
-    let actions = actions.iter().map(|(p, a)| JsonAction { path: p, action: a }).collect();
-    JsonReport { signature_version: version, stats, detections, actions }
+    let actions = actions
+        .iter()
+        .map(|(p, a)| JsonAction { path: p, action: a })
+        .collect();
+    JsonReport {
+        signature_version: version,
+        stats,
+        detections,
+        actions,
+    }
 }

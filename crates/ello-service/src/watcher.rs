@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crossbeam_channel::{select, tick, Receiver};
+use crossbeam_channel::{after, select, Receiver};
 use ello_common::config::{Config, DefaultAction};
 use ello_common::{paths, Confidence, ScanOutcome};
 use ello_engine::scanner::{self, Engine};
@@ -24,13 +24,24 @@ pub enum Handled {
 
 /// Decides and applies remediation for a single scan outcome. Suspicious-only
 /// detections are logged, never auto-removed.
-pub fn handle_outcome(outcome: &ScanOutcome, action: DefaultAction, quarantine: &mut Option<Quarantine>) -> Handled {
+pub fn handle_outcome(
+    outcome: &ScanOutcome,
+    action: DefaultAction,
+    quarantine: &mut Option<Quarantine>,
+) -> Handled {
     let Some(worst) = outcome.worst() else {
-        return if outcome.error.is_some() { Handled::Skipped } else { Handled::Clean };
+        return if outcome.error.is_some() {
+            Handled::Skipped
+        } else {
+            Handled::Clean
+        };
     };
     if worst.confidence < Confidence::Malicious || action == DefaultAction::Report {
         tracing::warn!(path = %outcome.path.display(), threat = %worst.name, "detection (reported)");
-        return Handled::Detected { threat: worst.name.clone(), action: "reported".into() };
+        return Handled::Detected {
+            threat: worst.name.clone(),
+            action: "reported".into(),
+        };
     }
     let applied = match action {
         DefaultAction::Report => "reported".to_string(),
@@ -47,7 +58,10 @@ pub fn handle_outcome(outcome: &ScanOutcome, action: DefaultAction, quarantine: 
         },
     };
     tracing::warn!(path = %outcome.path.display(), threat = %worst.name, action = %applied, "real-time detection");
-    Handled::Detected { threat: worst.name.clone(), action: applied }
+    Handled::Detected {
+        threat: worst.name.clone(),
+        action: applied,
+    }
 }
 
 /// Shared state for the running protection loop.
@@ -66,7 +80,11 @@ impl Protection {
         } else {
             None
         };
-        Ok(Protection { engine: Arc::new(engine), action: config.realtime.action, quarantine })
+        Ok(Protection {
+            engine: Arc::new(engine),
+            action: config.realtime.action,
+            quarantine,
+        })
     }
 
     /// Scans one path and remediates. Exposed for testing the pipeline without
@@ -112,10 +130,17 @@ pub fn run(
     }
 
     let mut debouncer = Debouncer::new(debounce);
-    let ticker = tick(Duration::from_millis(200));
     tracing::info!("real-time protection active");
 
     loop {
+        // Sleep only as long as the soonest pending file needs, so an idle
+        // watcher does no work and a busy one scans promptly. When nothing is
+        // pending, wake occasionally to stay responsive to shutdown.
+        let wake = if debouncer.is_empty() {
+            Duration::from_secs(1)
+        } else {
+            debouncer.next_deadline(Instant::now()).unwrap_or_default()
+        };
         select! {
             recv(shutdown) -> _ => {
                 tracing::info!("shutdown requested");
@@ -131,11 +156,10 @@ pub fn run(
                     }
                 }
             }
-            recv(ticker) -> _ => {
-                for path in debouncer.take_due(Instant::now()) {
-                    protection.handle_path(&path);
-                }
-            }
+            recv(after(wake)) -> _ => {}
+        }
+        for path in debouncer.take_due(Instant::now()) {
+            protection.handle_path(&path);
         }
     }
 }
@@ -143,7 +167,10 @@ pub fn run(
 /// We only care about events that can introduce or modify file content.
 fn is_interesting(event: &Event) -> bool {
     use notify::EventKind;
-    matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_) | EventKind::Any)
+    matches!(
+        event.kind,
+        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Any
+    )
 }
 
 #[cfg(test)]
@@ -211,6 +238,9 @@ mod tests {
     #[test]
     fn missing_path_skipped() {
         let mut p = protection(DefaultAction::Report, None);
-        assert_eq!(p.handle_path(Path::new("/nonexistent/xyz")), Handled::Skipped);
+        assert_eq!(
+            p.handle_path(Path::new("/nonexistent/xyz")),
+            Handled::Skipped
+        );
     }
 }
