@@ -46,6 +46,7 @@ jobs:
         with:
           name: ello-windows-x64
           path: |
+            target/x86_64-pc-windows-gnu/release/ello-gui.exe
             target/x86_64-pc-windows-gnu/release/ello.exe
             target/x86_64-pc-windows-gnu/release/ello-service.exe
             target/x86_64-pc-windows-gnu/release/ello-sigtool.exe

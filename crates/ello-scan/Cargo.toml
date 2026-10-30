@@ -1,0 +1,17 @@
+[package]
+name = "ello-scan"
+description = "Ello Antivirus scan-session orchestration (walking, parallel scan, remediation)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ello-common.workspace = true
+ello-engine.workspace = true
+ello-quarantine.workspace = true
+rayon.workspace = true
+serde.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

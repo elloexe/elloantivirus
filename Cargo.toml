@@ -4,6 +4,8 @@ members = [
     "crates/ello-common",
     "crates/ello-engine",
     "crates/ello-quarantine",
+    "crates/ello-scan",
+    "crates/ello-gui",
     "crates/ello-cli",
     "crates/ello-service",
     "crates/ello-sigtool",
@@ -20,6 +22,7 @@ rust-version = "1.80"
 ello-common = { path = "crates/ello-common" }
 ello-engine = { path = "crates/ello-engine" }
 ello-quarantine = { path = "crates/ello-quarantine" }
+ello-scan = { path = "crates/ello-scan" }
 
 aho-corasick = "1"
 anyhow = "1"

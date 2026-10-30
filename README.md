@@ -20,9 +20,11 @@ updates.
 | Crate | Binary | Purpose |
 |-------|--------|---------|
 | `ello-engine` | — | Scanning engine: hashes, pattern rules, heuristics, OLE/VBA macro extraction, bounded archive recursion, signed-update verification |
+| `ello-scan` | — | Shared scan-session orchestration (walking, parallel scan, remediation) |
 | `ello-common` | — | Shared verdict types, TOML configuration, data-dir layout |
 | `ello-quarantine` | — | Encrypted (ChaCha20-Poly1305) quarantine vault |
-| `ello-cli` | `ello` | Command-line scanner and manager |
+| `ello-gui` | `ello-gui` | Desktop application (the main app) |
+| `ello-cli` | `ello` | Command-line scanner and manager (scripting/automation) |
 | `ello-service` | `ello-service` | Real-time folder-protection service |
 | `ello-sigtool` | `ello-sigtool` | Signature authoring, signing, and hash-feed import (vendor side) |
 
@@ -37,7 +39,23 @@ cargo test                                             # run the test suite
 The Windows cross-build needs the `x86_64-pc-windows-gnu` Rust target and the
 MinGW-w64 toolchain (`x86_64-w64-mingw32-gcc`); see `.cargo/config.toml`.
 
-## Using the scanner
+## The desktop app
+
+`ello-gui` is the main interface: a native window (egui) with no extra runtime.
+Launch it and use the left-hand tabs:
+
+- **Scan** — choose a folder or file, or run a Quick scan; pick the on-detection
+  action and sensitivity; watch live progress and the detections list.
+- **Quarantine** — review quarantined items and Restore or Delete them.
+- **Protection** — configure real-time watched folders and the on-detection
+  action; on Windows, install/start/stop the background service.
+- **Status** — signature version, trusted keys, quarantine count; trust a
+  vendor key and apply a signed update.
+
+Scans run on a background thread, so the window stays responsive and can be
+cancelled mid-scan.
+
+## Using the scanner (CLI)
 
 ```sh
 ello scan C:\Users\me\Downloads          # scan a path (recursive)
