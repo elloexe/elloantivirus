@@ -133,10 +133,18 @@ pub enum ConfigError {
     #[error("parsing {path}: {source}")]
     Parse {
         path: PathBuf,
-        source: toml::de::Error,
+        // Boxed: toml's error type is large, which would otherwise bloat every
+        // `Result<_, ConfigError>` (clippy::result_large_err).
+        source: Box<toml::de::Error>,
     },
     #[error("serializing config: {0}")]
-    Serialize(#[from] toml::ser::Error),
+    Serialize(Box<toml::ser::Error>),
+}
+
+impl From<toml::ser::Error> for ConfigError {
+    fn from(e: toml::ser::Error) -> Self {
+        ConfigError::Serialize(Box::new(e))
+    }
 }
 
 impl Config {
@@ -145,7 +153,7 @@ impl Config {
         match std::fs::read_to_string(path) {
             Ok(text) => toml::from_str(&text).map_err(|source| ConfigError::Parse {
                 path: path.into(),
-                source,
+                source: Box::new(source),
             }),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
             Err(source) => Err(ConfigError::Io {
